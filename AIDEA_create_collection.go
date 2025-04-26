@@ -29,8 +29,8 @@ func main() {
 				"model":       "all-minilm",                        // The model to use
 			},
 			"generative-ollama": map[string]interface{}{ // Configure the Ollama generative integration
-				"apiEndpoint": "http://host.docker.internal.internal:11434", // Allow Weaviate from within a Docker container to contact your Ollama instance
-				"model":       "gemma3",                                     // The model to use
+				"apiEndpoint": "http://host.docker.internal:11434", // Allow Weaviate from within a Docker container to contact your Ollama instance
+				"model":       "gemma3",                            // The model to use
 			},
 		},
 	}

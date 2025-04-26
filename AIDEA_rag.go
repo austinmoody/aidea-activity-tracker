@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
@@ -21,9 +22,19 @@ func main() {
 
 	ctx := context.Background()
 
-	generatePrompt := "Can you tell me which activity matches closest to the description given?"
+	userWorkDescription := "Austin Moody is my name"
 
-	gs := graphql.NewGenerativeSearch().GroupedResult(generatePrompt)
+	systemPromptFile, err := os.ReadFile("system_prompt.txt")
+	if err != nil {
+		fmt.Printf("Error reading system prompt file: %v\n", err)
+		os.Exit(1)
+	}
+
+	systemPrompt := fmt.Sprintf(string(systemPromptFile), userWorkDescription)
+
+	systemPrompt = "Find the Activity Description that most matches the supplied string."
+
+	gs := graphql.NewGenerativeSearch().GroupedResult(systemPrompt)
 
 	response, err := client.GraphQL().Get().
 		WithClassName("ActivityDescriptions").
@@ -31,10 +42,16 @@ func main() {
 			graphql.Field{Name: "category"},
 			graphql.Field{Name: "jira"},
 			graphql.Field{Name: "description"},
+			graphql.Field{Name: "_additional", Fields: []graphql.Field{
+				{Name: "certainty"}, // This gives you a confidence score between 0-1
+				{Name: "distance"},  // This gives you vector distance (lower is better)
+			}},
 		).
 		WithGenerativeSearch(gs).
-		WithNearText(client.GraphQL().NearTextArgBuilder().
-			WithConcepts([]string{"Coding on Xform Service organizations api"})).
+		WithNearText(
+			client.GraphQL().NearTextArgBuilder().
+				WithConcepts([]string{userWorkDescription}),
+		).
 		WithLimit(1).
 		Do(ctx)
 

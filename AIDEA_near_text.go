@@ -31,7 +31,7 @@ func main() {
 		).
 		WithNearText(client.GraphQL().NearTextArgBuilder().
 			WithConcepts([]string{"Coding on Xform Service organizations api"})).
-		WithLimit(2).
+		WithLimit(1).
 		Do(ctx)
 
 	if err != nil {
