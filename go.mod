@@ -2,7 +2,11 @@ module github.com/austinmoody/aidea-activity-tracking
 
 go 1.24.2
 
-require github.com/weaviate/weaviate-go-client/v4 v4.16.1
+require (
+	github.com/google/uuid v1.6.0
+	github.com/weaviate/weaviate v1.27.0
+	github.com/weaviate/weaviate-go-client/v4 v4.16.1
+)
 
 require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
@@ -15,13 +19,11 @@ require (
 	github.com/go-openapi/strfmt v0.23.0 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-openapi/validate v0.21.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/weaviate/weaviate v1.27.0 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	golang.org/x/net v0.29.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect

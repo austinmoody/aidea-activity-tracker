@@ -1,3 +1,7 @@
 activity_data_SITE.json
 /.idea/
 system_prompt.txt
+/CLAUDE.md
+/activity_data_SITE_withid.json
+/example_activity_data_SITE_withid.json
+/example_system_prompt.txt

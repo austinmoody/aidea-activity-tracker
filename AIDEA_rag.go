@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
 )
 
 type Activity struct {
-	Id               string `json:"id"`
-	Category         string `json:"category"`
-	Jira             string `json:"jira"`
-	InputDescription string `json:"input_description"`
-	RuleDescription  string `json:"rule_description"`
+	ActivityId             string  `json:"activityId"`
+	Category               string  `json:"category"`
+	Jira                   string  `json:"jira"`
+	InputDescription       string  `json:"input_description"`
+	RuleId                 string  `json:"ruleId"`
+	RuleDescription        string  `json:"rule_description"`
+	CategorizationDistance float64 `json:"categorizationDistance"`
 }
 
 func main() {
@@ -30,7 +33,7 @@ func main() {
 
 	ctx := context.Background()
 
-	userWorkDescription := "Austin Moody is my name"
+	userWorkDescription := "Modernization - demo ui docker and build work"
 
 	systemPromptFile, err := os.ReadFile("system_prompt.txt")
 	if err != nil {
@@ -47,12 +50,12 @@ func main() {
 	response, err := client.GraphQL().Get().
 		WithClassName("ActivityRules").
 		WithFields(
+			graphql.Field{Name: "rule_id"},
 			graphql.Field{Name: "category"},
 			graphql.Field{Name: "jira"},
 			graphql.Field{Name: "description"},
 			graphql.Field{Name: "_additional", Fields: []graphql.Field{
-				{Name: "certainty"}, // This gives you a confidence score between 0-1
-				{Name: "distance"},  // This gives you vector distance (lower is better)
+				{Name: "distance"}, // Default weaviate uses cosine.  0 = identical vector / 2 = opposing vector
 			}},
 		).
 		WithGenerativeSearch(gs).
@@ -66,5 +69,35 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("%v", response)
+
+	// Extract data from response
+	data := response.Data["Get"].(map[string]interface{})
+	activityRules := data["ActivityRules"].([]interface{})
+
+	if len(activityRules) > 0 {
+		// Get the first result
+		rule := activityRules[0].(map[string]interface{})
+
+		additional := rule["_additional"].(map[string]interface{})
+		distance := additional["distance"].(float64)
+
+		// Debug the response structure
+		fmt.Printf("Rule data types: %T %T %T %T\n",
+			rule["rule_id"], rule["description"], rule["category"], rule["jira"])
+
+		// Create new Activity from the result
+		activity := Activity{
+			ActivityId:             uuid.New().String(),
+			RuleId:                 fmt.Sprintf("%v", rule["rule_id"]),
+			RuleDescription:        fmt.Sprintf("%v", rule["description"]),
+			Category:               fmt.Sprintf("%v", rule["category"]),
+			Jira:                   fmt.Sprintf("%v", rule["jira"]),
+			InputDescription:       userWorkDescription,
+			CategorizationDistance: distance,
+		}
+
+		fmt.Printf("Activity created: %+v\n", activity)
+	} else {
+		fmt.Println("No matching activity rules found")
+	}
 }
