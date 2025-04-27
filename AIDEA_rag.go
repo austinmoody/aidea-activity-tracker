@@ -9,6 +9,14 @@ import (
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
 )
 
+type Activity struct {
+	Id               string `json:"id"`
+	Category         string `json:"category"`
+	Jira             string `json:"jira"`
+	InputDescription string `json:"input_description"`
+	RuleDescription  string `json:"rule_description"`
+}
+
 func main() {
 	cfg := weaviate.Config{
 		Host:   "localhost:8080",
@@ -37,7 +45,7 @@ func main() {
 	gs := graphql.NewGenerativeSearch().GroupedResult(systemPrompt)
 
 	response, err := client.GraphQL().Get().
-		WithClassName("ActivityDescriptions").
+		WithClassName("ActivityRules").
 		WithFields(
 			graphql.Field{Name: "category"},
 			graphql.Field{Name: "jira"},

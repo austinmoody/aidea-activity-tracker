@@ -10,13 +10,14 @@ import (
 	"github.com/weaviate/weaviate/entities/models"
 )
 
-type ActivityDescription struct {
+type ActivityRule struct {
+	RuleId      int    `json:"rule_id"`
 	Category    string `json:"category"`
 	Jira        string `json:"jira"`
 	Description string `json:"description"`
 }
-type ActivityDescriptions struct {
-	Activities []ActivityDescription `json:"activities"`
+type ActivityRules struct {
+	Activities []ActivityRule `json:"activities"`
 }
 
 func main() {
@@ -31,12 +32,12 @@ func main() {
 	}
 
 	// Read in SITE data and process
-	data, err := os.ReadFile("activity_data_SITE.json")
+	data, err := os.ReadFile("activity_data_SITE_withid.json")
 	if err != nil {
 		panic(err)
 	}
 
-	var siteDescriptions ActivityDescriptions
+	var siteDescriptions ActivityRules
 	if err := json.Unmarshal(data, &siteDescriptions); err != nil {
 		fmt.Printf("Error parsing config: %v\n", err)
 		os.Exit(1)
@@ -46,8 +47,9 @@ func main() {
 	objects := make([]*models.Object, len(siteDescriptions.Activities))
 	for i, activity := range siteDescriptions.Activities {
 		objects[i] = &models.Object{
-			Class: "ActivityDescriptions",
+			Class: "ActivityRules",
 			Properties: map[string]any{
+				"rule_id":     activity.RuleId,
 				"category":    activity.Category,
 				"jira":        activity.Jira,
 				"description": activity.Description,

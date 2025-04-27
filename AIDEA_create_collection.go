@@ -21,7 +21,7 @@ func main() {
 
 	// Define the collection
 	classObj := &models.Class{
-		Class:      "ActivityDescriptions",
+		Class:      "ActivityRules",
 		Vectorizer: "text2vec-ollama",
 		ModuleConfig: map[string]interface{}{
 			"text2vec-ollama": map[string]interface{}{ // Configure the Ollama embedding integration
@@ -31,6 +31,24 @@ func main() {
 			"generative-ollama": map[string]interface{}{ // Configure the Ollama generative integration
 				"apiEndpoint": "http://host.docker.internal:11434", // Allow Weaviate from within a Docker container to contact your Ollama instance
 				"model":       "gemma3",                            // The model to use
+			},
+		},
+		Properties: []*models.Property{
+			{
+				Name:     "rule_id",
+				DataType: []string{"int"},
+			},
+			{
+				Name:     "category",
+				DataType: []string{"text"},
+			},
+			{
+				Name:     "jira",
+				DataType: []string{"text"},
+			},
+			{
+				Name:     "description",
+				DataType: []string{"text"},
 			},
 		},
 	}

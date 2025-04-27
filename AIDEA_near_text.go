@@ -23,7 +23,7 @@ func main() {
 
 	//TODO - check the limit... the description below SHOULD NOT return anything from the SITE data
 	response, err := client.GraphQL().Get().
-		WithClassName("ActivityDescriptions").
+		WithClassName("ActivityRules").
 		WithFields(
 			graphql.Field{Name: "category"},
 			graphql.Field{Name: "jira"},
