@@ -20,7 +20,7 @@ type Activity struct {
 	CategorizationDistance float64 `json:"categorizationDistance"`
 }
 
-func main() {
+func ragTest() {
 	cfg := weaviate.Config{
 		Host:   "localhost:8080",
 		Scheme: "http",

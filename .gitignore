@@ -5,3 +5,4 @@ system_prompt.txt
 /activity_data_SITE_withid.json
 /example_activity_data_SITE_withid.json
 /example_system_prompt.txt
+.env*

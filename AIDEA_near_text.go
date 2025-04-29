@@ -8,7 +8,7 @@ import (
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
 )
 
-func main() {
+func nearText() {
 	cfg := weaviate.Config{
 		Host:   "localhost:8080",
 		Scheme: "http",

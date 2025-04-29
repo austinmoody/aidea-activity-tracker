@@ -20,7 +20,7 @@ type ActivityRules struct {
 	Activities []ActivityRule `json:"activities"`
 }
 
-func main() {
+func importData() {
 	cfg := weaviate.Config{
 		Host:   "localhost:8080",
 		Scheme: "http",

@@ -2,35 +2,65 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/joho/godotenv"
+	"github.com/weaviate/weaviate-go-client/v4/weaviate/fault"
+	"log"
+	"os"
 
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 	"github.com/weaviate/weaviate/entities/models"
 )
 
-func main() {
-	cfg := weaviate.Config{
-		Host:   "localhost:8080",
-		Scheme: "http",
+var (
+	weaviateConfig  weaviate.Config
+	weaviateClass   string
+	embedModel      string
+	generativeModel string
+	ollamaEndpoint  string
+)
+
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
 	}
 
-	client, err := weaviate.NewClient(cfg)
+	weaviateConfig = weaviate.Config{
+		Host:   fmt.Sprintf("%s:%s", os.Getenv("WEAVIATE_HOST"), os.Getenv("WEAVIATE_PORT")),
+		Scheme: os.Getenv("WEAVIATE_PROTOCOL"),
+	}
+
+	weaviateClass = os.Getenv("WEAVIATE_CLASS")
+	embedModel = os.Getenv("WEAVIATE_OLLAMA_EMBED_MODEL")
+	generativeModel = os.Getenv("WEAVIATE_OLLAMA_GEN_MODEL")
+	ollamaEndpoint = os.Getenv("WEAVIATE_OLLAMA_ENDPOINT")
+
+}
+
+func collectionCheck() {
+
+	log.Printf("checking for collection '%s'\n", weaviateClass)
+
+	client, err := weaviate.NewClient(weaviateConfig)
 	if err != nil {
 		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	// Define the collection
 	classObj := &models.Class{
-		Class:      "ActivityRules",
+		Class:      weaviateClass,
 		Vectorizer: "text2vec-ollama",
 		ModuleConfig: map[string]interface{}{
-			"text2vec-ollama": map[string]interface{}{ // Configure the Ollama embedding integration
-				"apiEndpoint": "http://host.docker.internal:11434", // Allow Weaviate from within a Docker container to contact your Ollama instance
-				"model":       "all-minilm",                        // The model to use
+			"text2vec-ollama": map[string]interface{}{
+				"apiEndpoint": ollamaEndpoint,
+				"model":       embedModel, // Embedding model to use
 			},
-			"generative-ollama": map[string]interface{}{ // Configure the Ollama generative integration
-				"apiEndpoint": "http://host.docker.internal:11434", // Allow Weaviate from within a Docker container to contact your Ollama instance
-				"model":       "gemma3",                            // The model to use
+			"generative-ollama": map[string]interface{}{
+				"apiEndpoint": ollamaEndpoint,
+				"model":       generativeModel, // Generative model to use
 			},
 		},
 		Properties: []*models.Property{
@@ -53,9 +83,32 @@ func main() {
 		},
 	}
 
-	// add the collection
-	err = client.Schema().ClassCreator().WithClass(classObj).Do(context.Background())
+	// Check to see if the collection exists already
+	_, err = client.Schema().ClassGetter().WithClassName(classObj.Class).Do(context.Background())
+	weaviateClassExists := true
 	if err != nil {
-		panic(err)
+		wce := &fault.WeaviateClientError{}
+		if errors.As(err, &wce) {
+			if wce.StatusCode == 404 {
+				weaviateClassExists = false
+			}
+		} else {
+			fmt.Printf("error getting existing collection: %v\n", err)
+			os.Exit(1)
+		}
 	}
+
+	if weaviateClassExists == false { // add the collection
+		log.Printf("collection '%s' not found, will create", classObj.Class)
+		err = client.Schema().ClassCreator().WithClass(classObj).Do(context.Background())
+		if err != nil {
+			fmt.Printf("error adding collection: '%v'\n", err)
+			os.Exit(1)
+		}
+	} else {
+		log.Printf("collection '%s' already exists", classObj.Class)
+	}
+
+	// TODO - may want way to update collection if class name exists but parameters are different
+
 }

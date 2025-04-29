@@ -4,6 +4,7 @@ go 1.24.2
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/joho/godotenv v1.3.0
 	github.com/weaviate/weaviate v1.27.0
 	github.com/weaviate/weaviate-go-client/v4 v4.16.1
 )

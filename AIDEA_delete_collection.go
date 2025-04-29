@@ -7,7 +7,7 @@ import (
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 )
 
-func main() {
+func deleteCollection() {
 	cfg := weaviate.Config{
 		Host:   "localhost:8080",
 		Scheme: "http",
