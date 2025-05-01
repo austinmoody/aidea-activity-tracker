@@ -1,0 +1,84 @@
+package main
+
+import (
+	"encoding/csv"
+	"fmt"
+	"log"
+	"os"
+	"reflect"
+	"time"
+)
+
+func saveActivityCsv(activity Activity) error {
+
+	// TODO - output directory as configuration
+	// TODO - save in some kind of data store
+
+	// Generate filename based on current date
+	currentDate := time.Now().Format("20060102") // Format for YYYYMMDD
+	filename := fmt.Sprintf("aidea_activity_tracking_%s.csv", currentDate)
+
+	// Check if the file exists to determine if we need to write headers
+	fileExists := false
+	if _, err := os.Stat(filename); err == nil {
+		fileExists = true
+	}
+
+	// Open file append mode or create if it doesn't exist
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("couldn't open csv file: %v", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	if !fileExists {
+		// Write headers if this file didn't exist already
+		if err := writer.Write(getHeaders(activity)); err != nil {
+			return fmt.Errorf("error writing headers: %v", err)
+		}
+	}
+
+	// Write data in Activity
+	myValues := getActivitySlice(activity)
+	log.Printf("writing %d records to csv", len(myValues))
+
+	return nil
+}
+
+func getHeaders(activity Activity) []string {
+	activityType := reflect.TypeOf(activity)
+
+	headers := make([]string, activityType.NumField())
+	for i := 0; i < activityType.NumField(); i++ {
+		headers[i] = activityType.Field(i).Name
+	}
+	return headers
+}
+
+// Take an Activity object and convert it to a []string to save as CSV
+// Looping the fields in the Activity struct to keep order with the
+// headers we already created.
+func getActivitySlice(activity Activity) []string {
+	activityType := reflect.TypeOf(activity)
+	activityValue := reflect.ValueOf(activity)
+
+	activityValues := make([]string, activityValue.NumField())
+	for i := 0; i < activityType.NumField(); i++ {
+		field := activityValue.Field(i)
+
+		// Convert each field to string appropriately
+		switch field.Kind() {
+		case reflect.String:
+			activityValues[i] = field.String()
+		case reflect.Float64:
+			activityValues[i] = fmt.Sprintf("%f", field.Float())
+		// Add other types as needed
+		default:
+			activityValues[i] = fmt.Sprintf("%v", field.Interface())
+		}
+	}
+	return activityValues
+}

@@ -6,3 +6,4 @@ system_prompt.txt
 /example_activity_data_SITE_withid.json
 /example_system_prompt.txt
 .env*
+/rules/

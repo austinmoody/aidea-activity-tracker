@@ -10,16 +10,6 @@ import (
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
 )
 
-type Activity struct {
-	ActivityId             string  `json:"activityId"`
-	Category               string  `json:"category"`
-	Jira                   string  `json:"jira"`
-	InputDescription       string  `json:"input_description"`
-	RuleId                 string  `json:"ruleId"`
-	RuleDescription        string  `json:"rule_description"`
-	CategorizationDistance float64 `json:"categorizationDistance"`
-}
-
 func ragTest() {
 	cfg := weaviate.Config{
 		Host:   "localhost:8080",
@@ -33,7 +23,7 @@ func ragTest() {
 
 	ctx := context.Background()
 
-	userWorkDescription := "Modernization - demo ui docker and build work"
+	userWorkDescription := "IZG Xform Service and Xform Console - cut releases"
 
 	systemPromptFile, err := os.ReadFile("system_prompt.txt")
 	if err != nil {
@@ -56,6 +46,7 @@ func ragTest() {
 			graphql.Field{Name: "description"},
 			graphql.Field{Name: "_additional", Fields: []graphql.Field{
 				{Name: "distance"}, // Default weaviate uses cosine.  0 = identical vector / 2 = opposing vector
+				{Name: "id"},       // Internal Weaviate identifier
 			}},
 		).
 		WithGenerativeSearch(gs).
@@ -80,6 +71,7 @@ func ragTest() {
 
 		additional := rule["_additional"].(map[string]interface{})
 		distance := additional["distance"].(float64)
+		weaviateId := additional["id"].(string)
 
 		// Debug the response structure
 		fmt.Printf("Rule data types: %T %T %T %T\n",
@@ -88,6 +80,7 @@ func ragTest() {
 		// Create new Activity from the result
 		activity := Activity{
 			ActivityId:             uuid.New().String(),
+			WeaviateId:             weaviateId,
 			RuleId:                 fmt.Sprintf("%v", rule["rule_id"]),
 			RuleDescription:        fmt.Sprintf("%v", rule["description"]),
 			Category:               fmt.Sprintf("%v", rule["category"]),

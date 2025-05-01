@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/joho/godotenv"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/fault"
 	"log"
 	"os"
@@ -12,32 +11,6 @@ import (
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 	"github.com/weaviate/weaviate/entities/models"
 )
-
-var (
-	weaviateConfig  weaviate.Config
-	weaviateClass   string
-	embedModel      string
-	generativeModel string
-	ollamaEndpoint  string
-)
-
-func init() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	weaviateConfig = weaviate.Config{
-		Host:   fmt.Sprintf("%s:%s", os.Getenv("WEAVIATE_HOST"), os.Getenv("WEAVIATE_PORT")),
-		Scheme: os.Getenv("WEAVIATE_PROTOCOL"),
-	}
-
-	weaviateClass = os.Getenv("WEAVIATE_CLASS")
-	embedModel = os.Getenv("WEAVIATE_OLLAMA_EMBED_MODEL")
-	generativeModel = os.Getenv("WEAVIATE_OLLAMA_GEN_MODEL")
-	ollamaEndpoint = os.Getenv("WEAVIATE_OLLAMA_ENDPOINT")
-
-}
 
 func collectionCheck() {
 

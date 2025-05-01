@@ -3,14 +3,32 @@ package main
 import (
 	"fmt"
 	"github.com/joho/godotenv"
+	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 	"log"
 	"net/http"
 	"os"
 )
 
 var (
-	trackerPort string
+	trackerPort     string
+	weaviateConfig  weaviate.Config
+	weaviateClass   string
+	embedModel      string
+	generativeModel string
+	ollamaEndpoint  string
+	rulesDirectory  string
 )
+
+type Activity struct {
+	ActivityId             string  `json:"activityId"`
+	WeaviateId             string  `json:"weaviateId"`
+	Category               string  `json:"category"`
+	Jira                   string  `json:"jira"`
+	InputDescription       string  `json:"input_description"`
+	RuleId                 string  `json:"ruleId"`
+	RuleDescription        string  `json:"rule_description"`
+	CategorizationDistance float64 `json:"categorizationDistance"`
+}
 
 func init() {
 	err := godotenv.Load()
@@ -19,6 +37,17 @@ func init() {
 	}
 
 	trackerPort = os.Getenv("TRACKER_PORT")
+
+	weaviateConfig = weaviate.Config{
+		Host:   fmt.Sprintf("%s:%s", os.Getenv("WEAVIATE_HOST"), os.Getenv("WEAVIATE_PORT")),
+		Scheme: os.Getenv("WEAVIATE_PROTOCOL"),
+	}
+
+	weaviateClass = os.Getenv("WEAVIATE_CLASS")
+	embedModel = os.Getenv("WEAVIATE_OLLAMA_EMBED_MODEL")
+	generativeModel = os.Getenv("WEAVIATE_OLLAMA_GEN_MODEL")
+	ollamaEndpoint = os.Getenv("WEAVIATE_OLLAMA_ENDPOINT")
+	rulesDirectory = os.Getenv("RULES_DIRECTORY")
 }
 
 func main() {
@@ -28,7 +57,11 @@ func main() {
 	// check the weaviate collection
 	collectionCheck()
 
+	// Import rule files
+	importRules()
+
 	mux := http.NewServeMux()
+	mux.Handle("/api/v1/activity", &ActivityManager{})
 
 	fmt.Printf("starting server on port '%s'", trackerPort)
 	err := http.ListenAndServe(fmt.Sprintf(":%s", trackerPort), mux)
