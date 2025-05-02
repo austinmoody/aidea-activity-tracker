@@ -3,37 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-
-	"github.com/google/uuid"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
 )
 
-func ragTest() {
-	cfg := weaviate.Config{
-		Host:   "localhost:8080",
-		Scheme: "http",
-	}
-
-	client, err := weaviate.NewClient(cfg)
+func categorizeActivity(activity Activity) Activity {
+	client, err := weaviate.NewClient(weaviateConfig)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	ctx := context.Background()
 
-	userWorkDescription := "IZG Xform Service and Xform Console - cut releases"
-
-	systemPromptFile, err := os.ReadFile("system_prompt.txt")
-	if err != nil {
-		fmt.Printf("Error reading system prompt file: %v\n", err)
-		os.Exit(1)
-	}
-
-	systemPrompt := fmt.Sprintf(string(systemPromptFile), userWorkDescription)
-
-	systemPrompt = "Find the Activity Description that most matches the supplied string."
+	// TODO read systemPrompt from file & make it better
+	systemPrompt := "Find the Activity Description that most matches the supplied string."
 
 	gs := graphql.NewGenerativeSearch().GroupedResult(systemPrompt)
 
@@ -52,7 +35,7 @@ func ragTest() {
 		WithGenerativeSearch(gs).
 		WithNearText(
 			client.GraphQL().NearTextArgBuilder().
-				WithConcepts([]string{userWorkDescription}),
+				WithConcepts([]string{activity.InputDescription}),
 		).
 		WithLimit(1).
 		Do(ctx)
@@ -77,20 +60,31 @@ func ragTest() {
 		fmt.Printf("Rule data types: %T %T %T %T\n",
 			rule["rule_id"], rule["description"], rule["category"], rule["jira"])
 
-		// Create new Activity from the result
-		activity := Activity{
-			ActivityId:             uuid.New().String(),
-			WeaviateId:             weaviateId,
-			RuleId:                 rule["rule_id"].(float64),
-			RuleDescription:        fmt.Sprintf("%v", rule["description"]),
-			Category:               fmt.Sprintf("%v", rule["category"]),
-			Jira:                   fmt.Sprintf("%v", rule["jira"]),
-			InputDescription:       userWorkDescription,
-			CategorizationDistance: distance,
-		}
-
-		fmt.Printf("Activity created: %+v\n", activity)
+		activity.WeaviateId = weaviateId
+		activity.RuleId = rule["rule_id"].(float64)
+		activity.RuleDescription = rule["description"].(string)
+		activity.Category = rule["category"].(string)
+		activity.Jira = rule["jira"].(string)
+		activity.CategorizationDistance = distance
+		activity.CategorizationGrade = getCategorizationGrade(distance)
 	} else {
-		fmt.Println("No matching activity rules found")
+		fmt.Printf("No activity category found in response")
+	}
+
+	return activity
+}
+
+func getCategorizationGrade(distance float64) string {
+	switch {
+	case distance >= 0.0 && distance < 0.2:
+		return "A"
+	case distance >= 0.2 && distance < 0.4:
+		return "B"
+	case distance >= 0.4 && distance < 0.7:
+		return "C"
+	case distance >= 0.7 && distance < 1.0:
+		return "D"
+	default:
+		return "F"
 	}
 }

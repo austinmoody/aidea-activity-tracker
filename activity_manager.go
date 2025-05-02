@@ -48,6 +48,8 @@ func (h *ActivityManager) saveActivity(w http.ResponseWriter, r *http.Request) {
 	request.CreatedAt = time.Now()
 	request.ActivityId = uuid.New().String()
 
+	request = categorizeActivity(request)
+
 	saveActivityCsv(request)
 
 	w.WriteHeader(http.StatusCreated)

@@ -26,9 +26,10 @@ type Activity struct {
 	Category               string    `json:"category"`
 	Jira                   string    `json:"jira"`
 	InputDescription       string    `json:"input_description"`
-	RuleId                 string    `json:"ruleId"`
+	RuleId                 float64   `json:"rule_id"`
 	RuleDescription        string    `json:"rule_description"`
 	CategorizationDistance float64   `json:"categorization_distance"`
+	CategorizationGrade    string    `json:"categorization_grade"`
 	CreatedAt              time.Time `json:"created_at"`
 }
 
