@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 var (
@@ -20,14 +21,15 @@ var (
 )
 
 type Activity struct {
-	ActivityId             string  `json:"activityId"`
-	WeaviateId             string  `json:"weaviateId"`
-	Category               string  `json:"category"`
-	Jira                   string  `json:"jira"`
-	InputDescription       string  `json:"input_description"`
-	RuleId                 string  `json:"ruleId"`
-	RuleDescription        string  `json:"rule_description"`
-	CategorizationDistance float64 `json:"categorizationDistance"`
+	ActivityId             string    `json:"activity_id"`
+	WeaviateId             string    `json:"weaviate_id"`
+	Category               string    `json:"category"`
+	Jira                   string    `json:"jira"`
+	InputDescription       string    `json:"input_description"`
+	RuleId                 string    `json:"ruleId"`
+	RuleDescription        string    `json:"rule_description"`
+	CategorizationDistance float64   `json:"categorization_distance"`
+	CreatedAt              time.Time `json:"created_at"`
 }
 
 func init() {

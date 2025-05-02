@@ -45,6 +45,10 @@ func saveActivityCsv(activity Activity) error {
 	myValues := getActivitySlice(activity)
 	log.Printf("writing %d records to csv", len(myValues))
 
+	if err := writer.Write(myValues); err != nil {
+		return fmt.Errorf("error writing records to csv: %v", err)
+	}
+
 	return nil
 }
 

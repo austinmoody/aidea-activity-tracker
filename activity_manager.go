@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/google/uuid"
 	"io"
 	"net/http"
+	"time"
 )
 
 type ActivityManager struct{}
@@ -41,6 +43,10 @@ func (h *ActivityManager) saveActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error parsing JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	// Set created at time & activity id
+	request.CreatedAt = time.Now()
+	request.ActivityId = uuid.New().String()
 
 	saveActivityCsv(request)
 
