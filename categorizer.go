@@ -23,8 +23,8 @@ func categorizeActivity(activity Activity) Activity {
 	response, err := client.GraphQL().Get().
 		WithClassName("ActivityRules").
 		WithFields(
-			graphql.Field{Name: "rule_id"},
-			graphql.Field{Name: "category"},
+			graphql.Field{Name: "project"},
+			graphql.Field{Name: "task"},
 			graphql.Field{Name: "jira"},
 			graphql.Field{Name: "description"},
 			graphql.Field{Name: "_additional", Fields: []graphql.Field{
@@ -61,9 +61,9 @@ func categorizeActivity(activity Activity) Activity {
 			rule["rule_id"], rule["description"], rule["category"], rule["jira"])
 
 		activity.WeaviateId = weaviateId
-		activity.RuleId = rule["rule_id"].(float64)
+		activity.Project = rule["project"].(string)
+		activity.Task = rule["task"].(string)
 		activity.RuleDescription = rule["description"].(string)
-		activity.Category = rule["category"].(string)
 		activity.Jira = rule["jira"].(string)
 		activity.CategorizationDistance = distance
 		activity.CategorizationGrade = getCategorizationGrade(distance)

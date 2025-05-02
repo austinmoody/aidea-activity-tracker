@@ -23,10 +23,10 @@ var (
 type Activity struct {
 	ActivityId             string    `json:"activity_id"`
 	WeaviateId             string    `json:"weaviate_id"`
-	Category               string    `json:"category"`
+	Project                string    `json:"project"`
+	Task                   string    `json:"task"`
 	Jira                   string    `json:"jira"`
 	InputDescription       string    `json:"input_description"`
-	RuleId                 float64   `json:"rule_id"`
 	RuleDescription        string    `json:"rule_description"`
 	CategorizationDistance float64   `json:"categorization_distance"`
 	CategorizationGrade    string    `json:"categorization_grade"`
@@ -61,10 +61,11 @@ func main() {
 	collectionCheck()
 
 	// Import rule files
-	importRules()
+	//importRules()
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/activity", &ActivityManager{})
+	mux.Handle("/api/v1/rule", &RuleManager{})
 
 	fmt.Printf("starting server on port '%s'", trackerPort)
 	err := http.ListenAndServe(fmt.Sprintf(":%s", trackerPort), mux)

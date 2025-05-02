@@ -81,9 +81,9 @@ func ragTest() {
 		activity := Activity{
 			ActivityId:             uuid.New().String(),
 			WeaviateId:             weaviateId,
-			RuleId:                 rule["rule_id"].(float64),
+			Project:                rule["project"].(string),
+			Task:                   rule["task"].(string),
 			RuleDescription:        fmt.Sprintf("%v", rule["description"]),
-			Category:               fmt.Sprintf("%v", rule["category"]),
 			Jira:                   fmt.Sprintf("%v", rule["jira"]),
 			InputDescription:       userWorkDescription,
 			CategorizationDistance: distance,

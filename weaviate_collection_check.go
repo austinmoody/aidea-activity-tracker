@@ -36,13 +36,14 @@ func collectionCheck() {
 				"model":       generativeModel, // Generative model to use
 			},
 		},
+		// TODO - build this from Rule struct in rule_manager.go
 		Properties: []*models.Property{
 			{
-				Name:     "rule_id",
-				DataType: []string{"int"},
+				Name:     "project",
+				DataType: []string{"text"},
 			},
 			{
-				Name:     "category",
+				Name:     "task",
 				DataType: []string{"text"},
 			},
 			{
