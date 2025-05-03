@@ -52,6 +52,7 @@ func (h *ActivityManager) saveActivity(w http.ResponseWriter, r *http.Request) {
 	// Set created at time & activity id
 	request.CreatedAt = time.Now()
 	request.ActivityId = uuid.New().String()
+	request.Categorized = false
 
 	log.Printf("\tassigned id %s\n", request.ActivityId)
 

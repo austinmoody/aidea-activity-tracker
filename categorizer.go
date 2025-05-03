@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
+	"slices"
 )
 
 func categorizeActivity(activity Activity) Activity {
@@ -21,7 +22,7 @@ func categorizeActivity(activity Activity) Activity {
 	gs := graphql.NewGenerativeSearch().GroupedResult(systemPrompt)
 
 	response, err := client.GraphQL().Get().
-		WithClassName("ActivityRules").
+		WithClassName(weaviateClass).
 		WithFields(
 			graphql.Field{Name: "project"},
 			graphql.Field{Name: "task"},
@@ -46,7 +47,7 @@ func categorizeActivity(activity Activity) Activity {
 
 	// Extract data from response
 	data := response.Data["Get"].(map[string]interface{})
-	activityRules := data["ActivityRules"].([]interface{})
+	activityRules := data[weaviateClass].([]interface{})
 
 	if len(activityRules) > 0 {
 		// Get the first result
@@ -56,11 +57,21 @@ func categorizeActivity(activity Activity) Activity {
 		distance := additional["distance"].(float64)
 		weaviateId := additional["id"].(string)
 
+		// Get the grade so we can determine if we want to save the result
+		activity.CategorizationGrade = getCategorizationGrade(distance)
+
+		if slices.Contains(autoGrades, activity.CategorizationGrade) {
+			// We are only going to save this information if the categorization
+			// matches configured grade(s)
+			activity.Project = rule["project"].(string)
+			activity.Task = rule["task"].(string)
+			activity.Jira = rule["jira"].(string)
+			activity.Categorized = true
+		}
+
+		// Save these no matter what so that user can see what the "closest" match was
 		activity.WeaviateId = weaviateId
-		activity.Project = rule["project"].(string)
-		activity.Task = rule["task"].(string)
 		activity.RuleDescription = rule["description"].(string)
-		activity.Jira = rule["jira"].(string)
 		activity.CategorizationDistance = distance
 		activity.CategorizationGrade = getCategorizationGrade(distance)
 	} else {

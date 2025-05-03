@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,7 @@ var (
 	// get that until something else can happen
 	ollamaGenEndpoint string
 	ollamaGenModel    string
+	autoGrades        []string
 )
 
 type Activity struct {
@@ -38,6 +40,7 @@ type Activity struct {
 	CategorizationDistance float64   `json:"categorization_distance"`
 	CategorizationGrade    string    `json:"categorization_grade"`
 	Duration               string    `json:"duration"`
+	Categorized            bool      `json:"categorized"`
 	CreatedAt              time.Time `json:"created_at"`
 }
 
@@ -62,6 +65,13 @@ func init() {
 
 	ollamaGenEndpoint = os.Getenv("OLLAMA_GEN_ENDPOINT")
 	ollamaGenModel = os.Getenv("OLLAMA_GEN_MODEL")
+
+	// Whatever is set here will be "categorized".  So, currently when categorizer
+	// runs it looks as the distance and determines a A,B,C,D,F "grade". Whatever
+	// is set here gets automatically categorized. So if you have this set to A,B
+	// and the match is determined to be C the categorization won't be saved
+	autoGrades = strings.Split(os.Getenv("AUTO_CATEGORIZE_GRADES"), ",")
+
 }
 
 func main() {

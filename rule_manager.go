@@ -185,7 +185,7 @@ func saveRulesToWeaviate(rules []Rule) (bool, error) {
 	objects := make([]*models.Object, len(rules))
 	for i, rule := range rules {
 		objects[i] = &models.Object{
-			Class: "ActivityRules",
+			Class: weaviateClass,
 			Properties: map[string]any{
 				"project":     rule.Project,
 				"task":        rule.Task,

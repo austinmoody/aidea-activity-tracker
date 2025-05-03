@@ -65,7 +65,7 @@ func loadRuleFile(ruleFile os.DirEntry) {
 	objects := make([]*models.Object, len(rules.Activities))
 	for i, activity := range rules.Activities {
 		objects[i] = &models.Object{
-			Class: "ActivityRules",
+			Class: weaviateClass,
 			Properties: map[string]any{
 				"rule_id":     activity.RuleId,
 				"category":    activity.Category,
