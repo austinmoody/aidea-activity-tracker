@@ -11,13 +11,20 @@ import (
 )
 
 var (
-	trackerPort     string
-	weaviateConfig  weaviate.Config
-	weaviateClass   string
-	embedModel      string
-	generativeModel string
-	ollamaEndpoint  string
-	rulesDirectory  string
+	trackerPort             string
+	weaviateConfig          weaviate.Config
+	weaviateClass           string
+	weaviateEmbedModel      string
+	weaviateGenerativeModel string
+	weaviateOllamaEndpoint  string
+	rulesDirectory          string
+	// There are two ollama endpoints only because Weaviate is
+	// running in Docker and so needs host.docker.internal to talk
+	// to my locally running Ollama. But I can't get a duration pulled
+	// via Weaviate so I'm making a 2nd call to Ollama (locally) to
+	// get that until something else can happen
+	ollamaGenEndpoint string
+	ollamaGenModel    string
 )
 
 type Activity struct {
@@ -30,6 +37,7 @@ type Activity struct {
 	RuleDescription        string    `json:"rule_description"`
 	CategorizationDistance float64   `json:"categorization_distance"`
 	CategorizationGrade    string    `json:"categorization_grade"`
+	Duration               string    `json:"duration"`
 	CreatedAt              time.Time `json:"created_at"`
 }
 
@@ -47,10 +55,13 @@ func init() {
 	}
 
 	weaviateClass = os.Getenv("WEAVIATE_CLASS")
-	embedModel = os.Getenv("WEAVIATE_OLLAMA_EMBED_MODEL")
-	generativeModel = os.Getenv("WEAVIATE_OLLAMA_GEN_MODEL")
-	ollamaEndpoint = os.Getenv("WEAVIATE_OLLAMA_ENDPOINT")
+	weaviateEmbedModel = os.Getenv("WEAVIATE_OLLAMA_EMBED_MODEL")
+	weaviateGenerativeModel = os.Getenv("WEAVIATE_OLLAMA_GEN_MODEL")
+	weaviateOllamaEndpoint = os.Getenv("WEAVIATE_OLLAMA_ENDPOINT")
 	rulesDirectory = os.Getenv("RULES_DIRECTORY")
+
+	ollamaGenEndpoint = os.Getenv("OLLAMA_GEN_ENDPOINT")
+	ollamaGenModel = os.Getenv("OLLAMA_GEN_MODEL")
 }
 
 func main() {

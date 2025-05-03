@@ -28,12 +28,12 @@ func collectionCheck() {
 		Vectorizer: "text2vec-ollama",
 		ModuleConfig: map[string]interface{}{
 			"text2vec-ollama": map[string]interface{}{
-				"apiEndpoint": ollamaEndpoint,
-				"model":       embedModel, // Embedding model to use
+				"apiEndpoint": weaviateOllamaEndpoint,
+				"model":       weaviateEmbedModel, // Embedding model to use
 			},
 			"generative-ollama": map[string]interface{}{
-				"apiEndpoint": ollamaEndpoint,
-				"model":       generativeModel, // Generative model to use
+				"apiEndpoint": weaviateOllamaEndpoint,
+				"model":       weaviateGenerativeModel, // Generative model to use
 			},
 		},
 		// TODO - build this from Rule struct in rule_manager.go

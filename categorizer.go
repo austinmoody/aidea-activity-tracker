@@ -56,10 +56,6 @@ func categorizeActivity(activity Activity) Activity {
 		distance := additional["distance"].(float64)
 		weaviateId := additional["id"].(string)
 
-		// Debug the response structure
-		fmt.Printf("Rule data types: %T %T %T %T\n",
-			rule["rule_id"], rule["description"], rule["category"], rule["jira"])
-
 		activity.WeaviateId = weaviateId
 		activity.Project = rule["project"].(string)
 		activity.Task = rule["task"].(string)
