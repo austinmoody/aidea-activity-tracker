@@ -85,8 +85,10 @@ func main() {
 	//importRules()
 
 	mux := http.NewServeMux()
+	mux.Handle("/api/v1/activity/", &ActivityManager{})
 	mux.Handle("/api/v1/activity", &ActivityManager{})
 	mux.Handle("/api/v1/rule", &RuleManager{})
+	mux.Handle("/api/v1/rule/", &RuleManager{})
 
 	fmt.Printf("starting server on port '%s'", trackerPort)
 	err := http.ListenAndServe(fmt.Sprintf(":%s", trackerPort), mux)
