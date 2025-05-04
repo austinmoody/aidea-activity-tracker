@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
@@ -8,18 +9,24 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"regexp"
+	"strconv"
 	"time"
 )
 
 var (
 	activityTodayCsv *regexp.Regexp
+	activityById     *regexp.Regexp
+	activityByDateId *regexp.Regexp
 )
 
 type ActivityManager struct{}
 
 func init() {
 	activityTodayCsv = regexp.MustCompile(`^/api/v1/activity/today$`)
+	activityById = regexp.MustCompile(`^/api/v1/activity/([0-9a-f-]+)$`)
+	activityByDateId = regexp.MustCompile(`^/api/v1/activity/[0-9]{8}/([0-9a-f-]+)$`)
 }
 
 func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +39,9 @@ func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case
 		r.Method == "GET" && activityTodayCsv.MatchString(r.URL.String()):
 		h.getTodayCsv(w, r)
+	case
+		r.Method == "GET" && activityById.MatchString(r.URL.String()):
+		h.getActivityById(w, r)
 	default:
 		http.Error(w, "invalid request", http.StatusBadRequest)
 	}
@@ -127,3 +137,106 @@ func (h *ActivityManager) getTodayCsv(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error sending CSV file: %v", err)
 	}
 }
+
+func (h *ActivityManager) getActivityById(w http.ResponseWriter, r *http.Request) {
+	// Extract activity ID from URL using the regex pattern
+	matches := activityById.FindStringSubmatch(r.URL.String())
+	if len(matches) < 2 {
+		http.Error(w, "Invalid activity ID in URL", http.StatusBadRequest)
+		return
+	}
+	activityId := matches[1]
+
+	// Generate today's filename based on current date
+	currentDate := time.Now().Format("20060102") // Format for YYYYMMDD
+	filename := fmt.Sprintf("aidea_activity_tracking_%s.csv", currentDate)
+
+	// Check if the file exists
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		http.Error(w, "No activity data for today", http.StatusNotFound)
+		return
+	}
+
+	// Open the CSV file
+	file, err := os.Open(filename)
+	if err != nil {
+		http.Error(w, "Error opening CSV file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	// Create a CSV reader
+	reader := csv.NewReader(file)
+
+	// Read header row
+	headers, err := reader.Read()
+	if err != nil {
+		http.Error(w, "Error reading CSV headers: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Create a map to store header indices for easy lookup
+	headerIndex := make(map[string]int)
+	for i, header := range headers {
+		headerIndex[header] = i
+	}
+
+	// Read all records and find the one with matching activity ID
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			http.Error(w, "Error reading CSV record: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Check if this record's ActivityId matches the requested one
+		if record[headerIndex["ActivityId"]] == activityId {
+			// Create an Activity struct from the CSV record
+			activity := Activity{}
+			activityValue := reflect.ValueOf(&activity).Elem()
+			activityType := reflect.TypeOf(activity)
+
+			// Map CSV values to struct fields
+			for i := 0; i < activityType.NumField(); i++ {
+				fieldName := activityType.Field(i).Name
+				if idx, exists := headerIndex[fieldName]; exists && idx < len(record) {
+					field := activityValue.FieldByName(fieldName)
+					if field.CanSet() {
+						// Set value based on field type
+						switch field.Kind() {
+						case reflect.String:
+							field.SetString(record[idx])
+						case reflect.Float64:
+							val, _ := strconv.ParseFloat(record[idx], 64)
+							field.SetFloat(val)
+						case reflect.Bool:
+							val, _ := strconv.ParseBool(record[idx])
+							field.SetBool(val)
+						case reflect.Struct:
+							// Handle time.Time
+							if field.Type() == reflect.TypeOf(time.Time{}) {
+								t, _ := time.Parse(time.RFC3339, record[idx])
+								field.Set(reflect.ValueOf(t))
+							}
+						}
+					}
+				}
+			}
+
+			// Return the activity as JSON
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(activity)
+			return
+		}
+	}
+
+	// If we get here, no matching activity was found
+	http.Error(w, "Activity not found", http.StatusNotFound)
+}
+
+// TODO - a function to get an activity by id - Do I need this?
+// TODO - a function to trigger categorization of any today where Categorized = false
+// TODO - a function to recategorize a specific activity by id
