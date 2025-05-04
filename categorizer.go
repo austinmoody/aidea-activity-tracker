@@ -75,6 +75,9 @@ func categorizeActivity(activity Activity) Activity {
 		activity.CategorizationDistance = distance
 		activity.CategorizationGrade = getCategorizationGrade(distance)
 	} else {
+		activity.Categorized = false
+		activity.CategorizationGrade = "N/A"
+		activity.RuleDescription = "N/A"
 		fmt.Printf("No activity category found in response")
 	}
 
