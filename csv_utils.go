@@ -79,6 +79,15 @@ func getActivitySlice(activity Activity) []string {
 			activityValues[i] = field.String()
 		case reflect.Float64:
 			activityValues[i] = fmt.Sprintf("%f", field.Float())
+		case reflect.Struct:
+			// Check if this is a time.Time field and format it nicely
+			if t, ok := field.Interface().(time.Time); ok {
+				activityValues[i] = t.Format("2006-01-02 15:04:05")
+			} else {
+				activityValues[i] = fmt.Sprintf("%v", field.Interface())
+			}
+		case reflect.Bool:
+			activityValues[i] = fmt.Sprintf("%t", field.Bool())
 		// Add other types as needed
 		default:
 			activityValues[i] = fmt.Sprintf("%v", field.Interface())

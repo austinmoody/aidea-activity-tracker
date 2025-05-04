@@ -26,7 +26,7 @@ type ActivityManager struct{}
 func init() {
 	activityTodayCsv = regexp.MustCompile(`^/api/v1/activity/today$`)
 	activityById = regexp.MustCompile(`^/api/v1/activity/([0-9a-f-]+)$`)
-	activityByDateId = regexp.MustCompile(`^/api/v1/activity/[0-9]{8}/([0-9a-f-]+)$`)
+	activityByDateId = regexp.MustCompile(`^/api/v1/activity/([0-9]{8})/([0-9a-f-]+)$`)
 }
 
 func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -38,10 +38,13 @@ func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.saveActivity(w, r)
 	case
 		r.Method == "GET" && activityTodayCsv.MatchString(r.URL.String()):
-		h.getTodayCsv(w, r)
+		h.getTodayCsv(w)
 	case
 		r.Method == "GET" && activityById.MatchString(r.URL.String()):
 		h.getActivityById(w, r)
+	case
+		r.Method == "GET" && activityByDateId.MatchString(r.URL.String()):
+		h.getActivityByDateId(w, r)
 	default:
 		http.Error(w, "invalid request", http.StatusBadRequest)
 	}
@@ -107,7 +110,7 @@ func (h *ActivityManager) saveActivity(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *ActivityManager) getTodayCsv(w http.ResponseWriter, r *http.Request) {
+func (h *ActivityManager) getTodayCsv(w http.ResponseWriter) {
 	// Generate today's filename based on current date
 	currentDate := time.Now().Format("20060102") // Format for YYYYMMDD
 	filename := fmt.Sprintf("aidea_activity_tracking_%s.csv", currentDate)
@@ -138,6 +141,35 @@ func (h *ActivityManager) getTodayCsv(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *ActivityManager) getActivityByDateId(w http.ResponseWriter, r *http.Request) {
+	// Extract activity ID from URL using the regex pattern
+	matches := activityByDateId.FindStringSubmatch(r.URL.String())
+	if len(matches) < 2 {
+		http.Error(w, "Invalid activity ID in URL", http.StatusBadRequest)
+		return
+	}
+	fileDate := matches[1]
+	activityId := matches[2]
+
+	filename := fmt.Sprintf("aidea_activity_tracking_%s.csv", fileDate)
+
+	activity, err := getActivityInFileById(activityId, filename)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if (Activity{} == activity) {
+		http.Error(w, "activity not found", http.StatusNotFound)
+		return
+	}
+
+	// Return the activity as JSON
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(activity)
+	return
+}
+
 func (h *ActivityManager) getActivityById(w http.ResponseWriter, r *http.Request) {
 	// Extract activity ID from URL using the regex pattern
 	matches := activityById.FindStringSubmatch(r.URL.String())
@@ -151,17 +183,33 @@ func (h *ActivityManager) getActivityById(w http.ResponseWriter, r *http.Request
 	currentDate := time.Now().Format("20060102") // Format for YYYYMMDD
 	filename := fmt.Sprintf("aidea_activity_tracking_%s.csv", currentDate)
 
+	activity, err := getActivityInFileById(activityId, filename)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if (Activity{} == activity) {
+		http.Error(w, "activity not found", http.StatusNotFound)
+		return
+	}
+
+	// Return the activity as JSON
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(activity)
+	return
+}
+
+func getActivityInFileById(activityId string, filename string) (Activity, error) {
 	// Check if the file exists
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		http.Error(w, "No activity data for today", http.StatusNotFound)
-		return
+		return Activity{}, fmt.Errorf("no activity data file '%s' found'", filename)
 	}
 
 	// Open the CSV file
 	file, err := os.Open(filename)
 	if err != nil {
-		http.Error(w, "Error opening CSV file: "+err.Error(), http.StatusInternalServerError)
-		return
+		return Activity{}, fmt.Errorf("error opening csv file: %v", err)
 	}
 	defer file.Close()
 
@@ -171,8 +219,7 @@ func (h *ActivityManager) getActivityById(w http.ResponseWriter, r *http.Request
 	// Read header row
 	headers, err := reader.Read()
 	if err != nil {
-		http.Error(w, "Error reading CSV headers: "+err.Error(), http.StatusInternalServerError)
-		return
+		return Activity{}, fmt.Errorf("error reading csv headers: %v", err)
 	}
 
 	// Create a map to store header indices for easy lookup
@@ -188,8 +235,7 @@ func (h *ActivityManager) getActivityById(w http.ResponseWriter, r *http.Request
 			break
 		}
 		if err != nil {
-			http.Error(w, "Error reading CSV record: "+err.Error(), http.StatusInternalServerError)
-			return
+			return Activity{}, fmt.Errorf("error reading csv record: %v", err)
 		}
 
 		// Check if this record's ActivityId matches the requested one
@@ -218,25 +264,31 @@ func (h *ActivityManager) getActivityById(w http.ResponseWriter, r *http.Request
 						case reflect.Struct:
 							// Handle time.Time
 							if field.Type() == reflect.TypeOf(time.Time{}) {
-								t, _ := time.Parse(time.RFC3339, record[idx])
+								// First try our simplified format (what we're writing to CSV now)
+								t, err := time.Parse("2006-01-02 15:04:05", record[idx])
+								if err != nil {
+									// Try RFC3339 format
+									t, err = time.Parse(time.RFC3339, record[idx])
+									if err != nil {
+										// Try the original verbose format for backward compatibility
+										t, err = time.Parse("2006-01-02 15:04:05.999999 -0700 MST m=+0.000000000", record[idx])
+										if err != nil {
+											log.Printf("Error parsing time from '%s': %v", record[idx], err)
+										}
+									}
+								}
 								field.Set(reflect.ValueOf(t))
 							}
 						}
 					}
 				}
 			}
-
-			// Return the activity as JSON
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(activity)
-			return
+			return activity, nil
 		}
 	}
 
-	// If we get here, no matching activity was found
-	http.Error(w, "Activity not found", http.StatusNotFound)
+	return Activity{}, fmt.Errorf("activity not found")
 }
 
-// TODO - a function to get an activity by id - Do I need this?
 // TODO - a function to trigger categorization of any today where Categorized = false
 // TODO - a function to recategorize a specific activity by id
