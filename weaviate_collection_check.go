@@ -62,10 +62,8 @@ func collectionCheck() {
 	weaviateClassExists := true
 	if err != nil {
 		wce := &fault.WeaviateClientError{}
-		if errors.As(err, &wce) {
-			if wce.StatusCode == 404 {
-				weaviateClassExists = false
-			}
+		if errors.As(err, &wce) && wce.StatusCode == 404 {
+			weaviateClassExists = false
 		} else {
 			fmt.Printf("error getting existing collection: %v\n", err)
 			os.Exit(1)
