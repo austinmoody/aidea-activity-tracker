@@ -19,6 +19,7 @@ var (
 	activityTodayCsv *regexp.Regexp
 	activityById     *regexp.Regexp
 	activityByDateId *regexp.Regexp
+	recategorizeById *regexp.Regexp
 )
 
 type ActivityManager struct{}
@@ -27,6 +28,7 @@ func init() {
 	activityTodayCsv = regexp.MustCompile(`^/api/v1/activity/today$`)
 	activityById = regexp.MustCompile(`^/api/v1/activity/([0-9a-f-]+)$`)
 	activityByDateId = regexp.MustCompile(`^/api/v1/activity/([0-9]{8})/([0-9a-f-]+)$`)
+	recategorizeById = regexp.MustCompile(`^/api/v1/activity/recategorize/([0-9a-f-]+)$`)
 }
 
 func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -45,6 +47,9 @@ func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case
 		r.Method == "GET" && activityByDateId.MatchString(r.URL.String()):
 		h.getActivityByDateId(w, r)
+	case
+		r.Method == "PATCH" && recategorizeById.MatchString(r.URL.String()):
+		h.recategorizeActivity(w, r)
 	default:
 		http.Error(w, "invalid request", http.StatusBadRequest)
 	}
@@ -108,6 +113,61 @@ func (h *ActivityManager) saveActivity(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(request)
 
+}
+
+func (h *ActivityManager) recategorizeActivity(w http.ResponseWriter, r *http.Request) {
+	// Extract activity ID from URL using the regex pattern
+	matches := recategorizeById.FindStringSubmatch(r.URL.String())
+	if len(matches) < 2 {
+		http.Error(w, "Invalid activity ID in URL", http.StatusBadRequest)
+		return
+	}
+	activityId := matches[1]
+
+	log.Printf("activity to REcategorize: %s\n", activityId)
+
+	// Generate today's filename based on current date
+	currentDate := time.Now().Format("20060102") // Format for YYYYMMDD
+	filename := fmt.Sprintf("aidea_activity_tracking_%s.csv", currentDate)
+
+	activity, err := getActivityInFileById(activityId, filename)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if (Activity{} == activity) {
+		http.Error(w, "activity not found", http.StatusNotFound)
+		return
+	}
+
+	// TODO - this function and the saveActivity could be refactored, shared logic
+	// Have Ollama determine Jira/Tempo formatted duration
+	// from the user's input
+	duration, err := getDuration(activity)
+	if err != nil {
+		http.Error(w, "Error obtaining duration from input: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("\tollma extracted duration: %s\n", duration)
+	activity.Duration = duration
+
+	activity = categorizeActivity(activity)
+	log.Printf("\tweaviate REcategorized as Project: %s\n", activity.Project)
+	log.Printf("\tweaviate REcategorized as Task: %s\n", activity.Task)
+	log.Printf("\tweaviate REcategorized as Jira: %s\n", activity.Jira)
+	log.Printf("\tweaviate REcategorization grade: %s\n", activity.CategorizationGrade)
+
+	// Update the activity in the CSV file
+	err = updateActivityInCSV(activity, filename)
+	if err != nil {
+		http.Error(w, "Error updating activity in CSV: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(activity)
 }
 
 func (h *ActivityManager) getTodayCsv(w http.ResponseWriter) {
@@ -290,5 +350,76 @@ func getActivityInFileById(activityId string, filename string) (Activity, error)
 	return Activity{}, fmt.Errorf("activity not found")
 }
 
+// updateActivityInCSV replaces a specific activity in the CSV file
+func updateActivityInCSV(activity Activity, filename string) error {
+	// Check if the file exists
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return fmt.Errorf("no activity data file '%s' found", filename)
+	}
+
+	// Read the entire CSV file into memory
+	file, err := os.Open(filename)
+	if err != nil {
+		return fmt.Errorf("error opening csv file: %v", err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return fmt.Errorf("error reading csv file: %v", err)
+	}
+
+	// Get headers from the first row
+	headers := records[0]
+	headerIndex := make(map[string]int)
+	for i, header := range headers {
+		headerIndex[header] = i
+	}
+
+	// Find the activity ID index
+	activityIdIndex, exists := headerIndex["ActivityId"]
+	if !exists {
+		return fmt.Errorf("ActivityId column not found in CSV")
+	}
+
+	// Find the row with the matching activity ID
+	rowIndex := -1
+	for i, record := range records {
+		if i == 0 { // Skip the header row
+			continue
+		}
+		if record[activityIdIndex] == activity.ActivityId {
+			rowIndex = i
+			break
+		}
+	}
+
+	if rowIndex == -1 {
+		return fmt.Errorf("activity with ID %s not found in CSV", activity.ActivityId)
+	}
+
+	// Replace the row with the updated activity values
+	records[rowIndex] = getActivitySlice(activity)
+
+	// Write the updated records back to the file
+	file.Close() // Close before writing to avoid issues
+	outFile, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("error creating file for writing: %v", err)
+	}
+	defer outFile.Close()
+
+	writer := csv.NewWriter(outFile)
+	defer writer.Flush()
+
+	err = writer.WriteAll(records)
+	if err != nil {
+		return fmt.Errorf("error writing updated records to CSV: %v", err)
+	}
+
+	log.Printf("Successfully updated activity %s in CSV file", activity.ActivityId)
+	return nil
+}
+
 // TODO - a function to trigger categorization of any today where Categorized = false
-// TODO - a function to recategorize a specific activity by id

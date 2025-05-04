@@ -25,24 +25,44 @@ type OllamaResponse struct {
 
 func getDuration(activity Activity) (string, error) {
 
-	systemPrompt := `Extract any time information from the input and convert it to hours and minutes format
-  - IF NO SPECIFIC TIME IS MENTIONED IN THE INPUT, USE EXACTLY "15m" AS THE DEFAULT
-  - For specific time mentions, convert to the format "Xh Ym" where X is hours and Y is minutes
-  - When the total minutes are 60 or more, convert to hours and remaining minutes:
-    - Example: 75 minutes = 1 hour and 15 minutes = "1h 15m"
-    - Example: 90 minutes = 1 hour and 30 minutes = "1h 30m"
-    - Example: 120 minutes = 2 hours = "2h"
-    - Example: 150 minutes = 2 hours and 30 minutes = "2h 30m"
-  - If the time is less than one hour, use only minutes:
-    - Example: 30 minutes = "30m"
-    - Example: 45 minutes = "45m"
-  - If the time is an exact number of hours, omit the minutes:
-    - Example: 2 hours = "2h"
-    - Example: 1 hour = "1h"
-  - If no specific time is mentioned, respond with a default of "15m"
-  - For time conversion:
-    - 60 minutes = 1 hour
-    - To convert minutes to hours and minutes: divide by 60 to get hours, use remainder for minutes`
+	systemPrompt := `You are a time duration extractor. Your ONLY job is to output a time duration in the format below.
+
+CRITICAL INSTRUCTIONS:
+1. NEVER include any explanations, questions, or additional text in your response
+2. ONLY output the final time duration and nothing else
+3. DO NOT respond conversationally under any circumstances
+4. Your ENTIRE response must be JUST the duration string
+
+Format rules:
+- ALWAYS OUTPUT EXACTLY "15m" if no specific time is mentioned in the input
+- For specific time mentions, convert to the format "Xh Ym" where X is hours and Y is minutes
+- For hours + minutes format:
+  - Example: 75 minutes = "1h 15m"
+  - Example: 90 minutes = "1h 30m" 
+  - Example: 120 minutes = "2h"
+  - Example: 150 minutes = "2h 30m"
+- For minutes only (less than one hour):
+  - Example: 30 minutes = "30m"
+  - Example: 45 minutes = "45m"
+- For exact hours:
+  - Example: 2 hours = "2h"
+  - Example: 1 hour = "1h"
+
+Examples:
+Input: "Working on project for 30 minutes"
+Output: 30m
+
+Input: "Spent 2 hours on bug fixes"
+Output: 2h
+
+Input: "Meeting lasted 1 hour and 15 minutes"
+Output: 1h 15m
+
+Input: "Working on AIdea"
+Output: 15m
+
+Input: "Coding the new feature"
+Output: 15m`
 
 	ollamaRequest := OllamaRequest{
 		Model:       ollamaGenModel,
