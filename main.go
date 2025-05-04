@@ -89,6 +89,8 @@ func main() {
 	mux.Handle("/api/v1/activity", &ActivityManager{})
 	mux.Handle("/api/v1/rule", &RuleManager{})
 	mux.Handle("/api/v1/rule/", &RuleManager{})
+	mux.Handle("/api/v1/project", &ProjectManager{})
+	mux.Handle("/api/v1/project/", &ProjectManager{})
 
 	fmt.Printf("starting server on port '%s'", trackerPort)
 	err := http.ListenAndServe(fmt.Sprintf(":%s", trackerPort), mux)
