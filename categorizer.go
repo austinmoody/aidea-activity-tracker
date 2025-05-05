@@ -17,7 +17,11 @@ func categorizeActivity(activity Activity) Activity {
 	ctx := context.Background()
 
 	// TODO read systemPrompt from file & make it better
-	systemPrompt := "Find the Activity Description that most matches the supplied string."
+	systemPrompt := `You are a work time activity categorizer. 
+Find the Activity Description that most matches the supplied string
+Input may include descriptions of how much time was spent on the task, do not include this information
+in your categorization.
+`
 
 	gs := graphql.NewGenerativeSearch().GroupedResult(systemPrompt)
 
@@ -29,8 +33,9 @@ func categorizeActivity(activity Activity) Activity {
 			graphql.Field{Name: "jira"},
 			graphql.Field{Name: "description"},
 			graphql.Field{Name: "_additional", Fields: []graphql.Field{
-				{Name: "distance"}, // Default weaviate uses cosine.  0 = identical vector / 2 = opposing vector
-				{Name: "id"},       // Internal Weaviate identifier
+				{Name: "distance"},         // Default weaviate uses cosine.  0 = identical vector / 2 = opposing vector
+				{Name: "id"},               // Internal Weaviate identifier
+				{Name: "creationTimeUnix"}, // Internal Weaviate creation date/time
 			}},
 		).
 		WithGenerativeSearch(gs).
@@ -38,7 +43,7 @@ func categorizeActivity(activity Activity) Activity {
 			client.GraphQL().NearTextArgBuilder().
 				WithConcepts([]string{activity.InputDescription}),
 		).
-		WithLimit(1).
+		WithLimit(10).
 		Do(ctx)
 
 	if err != nil {
