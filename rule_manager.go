@@ -259,10 +259,48 @@ func (h *RuleManager) getRulesCsv(w http.ResponseWriter) {
 		http.Error(w, "error with Weaviate: "+err.Error(), http.StatusInternalServerError)
 	}
 
+	filename := fmt.Sprintf("%s-rules.csv", weaviateClass)
+
 	rules, err := client.Data().ObjectsGetter().WithClassName(weaviateClass).Do(context.Background())
 
 	log.Printf("got %d rules", len(rules))
 
+	if len(rules) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	w.WriteHeader(http.StatusOK)
+
+	csvWriter := csv.NewWriter(w)
+	defer csvWriter.Flush()
+
+	// Loop rules returned by Weaviate, convert to Rule struct and write to CSV
+	headerWritten := false
+	for _, weaviateObject := range rules {
+		weaviateRule := weaviateObject.Properties.(map[string]interface{})
+		rule := Rule{
+			Id:          weaviateObject.ID.String(),
+			Project:     weaviateRule["project"].(string),
+			Task:        weaviateRule["task"].(string),
+			Jira:        weaviateRule["jira"].(string),
+			Description: weaviateRule["description"].(string),
+		}
+
+		if !headerWritten {
+			if err := csvWriter.Write(getRuleHeaders(rule)); err != nil {
+				http.Error(w, "error writing rules CSV header: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			headerWritten = true
+		}
+
+		if err := csvWriter.Write(getRuleSlice(rule)); err != nil {
+			http.Error(w, "error writing rules CSV row: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 
 }

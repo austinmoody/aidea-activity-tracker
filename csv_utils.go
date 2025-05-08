@@ -52,6 +52,50 @@ func saveActivityCsv(activity Activity) error {
 	return nil
 }
 
+func getRuleHeaders(rule Rule) []string {
+	ruleType := reflect.TypeOf(rule)
+
+	headers := make([]string, ruleType.NumField())
+	for i := 0; i < ruleType.NumField(); i++ {
+		headers[i] = ruleType.Field(i).Name
+	}
+	return headers
+}
+
+// Take an Rule object and convert it to a []string to save as CSV
+// Looping the fields in the Rule struct to keep order with the
+// headers we already created.
+func getRuleSlice(rule Rule) []string {
+	ruleType := reflect.TypeOf(rule)
+	ruleValue := reflect.ValueOf(rule)
+
+	ruleValues := make([]string, ruleValue.NumField())
+	for i := 0; i < ruleType.NumField(); i++ {
+		field := ruleValue.Field(i)
+
+		// Convert each field to string appropriately
+		switch field.Kind() {
+		case reflect.String:
+			ruleValues[i] = field.String()
+		case reflect.Float64:
+			ruleValues[i] = fmt.Sprintf("%f", field.Float())
+		case reflect.Struct:
+			// Check if this is a time.Time field and format it nicely
+			if t, ok := field.Interface().(time.Time); ok {
+				ruleValues[i] = t.Format("2006-01-02 15:04:05")
+			} else {
+				ruleValues[i] = fmt.Sprintf("%v", field.Interface())
+			}
+		case reflect.Bool:
+			ruleValues[i] = fmt.Sprintf("%t", field.Bool())
+		// Add other types as needed
+		default:
+			ruleValues[i] = fmt.Sprintf("%v", field.Interface())
+		}
+	}
+	return ruleValues
+}
+
 func getHeaders(activity Activity) []string {
 	activityType := reflect.TypeOf(activity)
 
