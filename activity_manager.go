@@ -16,16 +16,18 @@ import (
 )
 
 var (
-	activityTodayCsv *regexp.Regexp
-	activityById     *regexp.Regexp
-	activityByDateId *regexp.Regexp
-	recategorizeById *regexp.Regexp
+	activityTodayCsv  *regexp.Regexp
+	activityCsvByDate *regexp.Regexp
+	activityById      *regexp.Regexp
+	activityByDateId  *regexp.Regexp
+	recategorizeById  *regexp.Regexp
 )
 
 type ActivityManager struct{}
 
 func init() {
-	activityTodayCsv = regexp.MustCompile(`^/api/v1/activity/today$`)
+	activityTodayCsv = regexp.MustCompile(`^/api/v1/activity/csv/today$`)
+	activityCsvByDate = regexp.MustCompile(`^/api/v1/activity/csv/([0-9]{8})$`)
 	activityById = regexp.MustCompile(`^/api/v1/activity/([0-9a-f-]+)$`)
 	activityByDateId = regexp.MustCompile(`^/api/v1/activity/([0-9]{8})/([0-9a-f-]+)$`)
 	recategorizeById = regexp.MustCompile(`^/api/v1/activity/recategorize/([0-9a-f-]+)$`)
@@ -41,6 +43,9 @@ func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case
 		r.Method == "GET" && activityTodayCsv.MatchString(r.URL.String()):
 		h.getTodayCsv(w)
+	case
+		r.Method == "GET" && activityCsvByDate.MatchString(r.URL.String()):
+		h.getCsvByDate(w, r)
 	case
 		r.Method == "GET" && activityById.MatchString(r.URL.String()):
 		h.getActivityById(w, r)
@@ -201,6 +206,36 @@ func (h *ActivityManager) getTodayCsv(w http.ResponseWriter) {
 	}
 }
 
+func (h *ActivityManager) getCsvByDate(w http.ResponseWriter, r *http.Request) {
+	// Extract date from URL using regex patter
+	matches := activityCsvByDate.FindStringSubmatch(r.URL.String())
+	if len(matches) < 1 {
+		http.Error(w, "Invalid date in URL", http.StatusBadRequest)
+		return
+	}
+	fileDate := matches[1]
+	filename := fmt.Sprintf("aidea_activity_tracking_%s.csv", fileDate)
+
+	file, err := getCsvFile(filename)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error opening CSV file '%s'  %s", filename, err.Error()), http.StatusInternalServerError)
+		return
+	}
+	defer file.Close() // Ensure file is closed after we're done with it
+
+	// Set response headers for CSV file download
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	w.WriteHeader(http.StatusOK)
+
+	// Copy the file contents to the response
+	_, err = io.Copy(w, file)
+	if err != nil {
+		http.Error(w, "Error sending CSV file: "+err.Error(), http.StatusInternalServerError)
+	}
+
+}
+
 func (h *ActivityManager) getActivityByDateId(w http.ResponseWriter, r *http.Request) {
 	// Extract activity ID from URL using the regex pattern
 	matches := activityByDateId.FindStringSubmatch(r.URL.String())
@@ -261,9 +296,15 @@ func (h *ActivityManager) getActivityById(w http.ResponseWriter, r *http.Request
 }
 
 func getActivityInFileById(activityId string, filename string) (Activity, error) {
+
+	// TODO - I've changed this so that if a file for the date isn't found or an id isn't found
+	// in the file that was opened I'm just returning an empty Activity. Eventually should rethink
+	// this to actually tell the caller what's up.
+
 	// Check if the file exists
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		return Activity{}, fmt.Errorf("no activity data file '%s' found'", filename)
+		log.Printf("No activity data for activity id: %s\n", activityId)
+		return Activity{}, nil
 	}
 
 	// Open the CSV file
@@ -347,7 +388,8 @@ func getActivityInFileById(activityId string, filename string) (Activity, error)
 		}
 	}
 
-	return Activity{}, fmt.Errorf("activity not found")
+	log.Printf("activity not found: %s\n", activityId)
+	return Activity{}, nil
 }
 
 // updateActivityInCSV replaces a specific activity in the CSV file
@@ -423,3 +465,18 @@ func updateActivityInCSV(activity Activity, filename string) error {
 }
 
 // TODO - a function to trigger categorization of any today where Categorized = false
+
+func getCsvFile(fileName string) (*os.File, error) {
+	// Check if the file exists
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		return nil, fmt.Errorf("no activity data file '%s' found", fileName)
+	}
+
+	// Open the file
+	file, err := os.Open(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("error opening csv file: %v", err)
+	}
+
+	return file, nil
+}

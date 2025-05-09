@@ -21,6 +21,11 @@ func categorizeActivity(activity Activity) Activity {
 Find the Activity Description that most matches the supplied string
 Input may include descriptions of how much time was spent on the task, do not include this information
 in your categorization.
+Some concepts which may be helpful:
+IZG means IZ Gateway or Immunization Gateway
+Transformation Service is the same as Xform Service
+Transformation Console is the same as Xform Console
+IZG CC is the IZG Configuration Console or IZ Gateway Configuration Console
 `
 
 	gs := graphql.NewGenerativeSearch().GroupedResult(systemPrompt)
