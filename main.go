@@ -81,9 +81,6 @@ func main() {
 	// check the weaviate collection
 	collectionCheck()
 
-	// Import rule files
-	//importRules()
-
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/activity/", &ActivityManager{})
 	mux.Handle("/api/v1/activity", &ActivityManager{})
@@ -92,11 +89,9 @@ func main() {
 	mux.Handle("/api/v1/project", &ProjectManager{})
 	mux.Handle("/api/v1/project/", &ProjectManager{})
 
-	fmt.Printf("starting server on port '%s'", trackerPort)
+	log.Printf("startup - server on port '%s'", trackerPort)
 	err := http.ListenAndServe(fmt.Sprintf(":%s", trackerPort), mux)
 	if err != nil {
 		log.Fatal("issue starting server: ", err)
 	}
-
-	log.Printf("finished starting server on port '%s'", trackerPort)
 }

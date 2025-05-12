@@ -14,7 +14,7 @@ import (
 
 func collectionCheck() {
 
-	log.Printf("checking for collection '%s'\n", weaviateClass)
+	log.Printf("collection check - looking for '%s'\n", weaviateClass)
 
 	client, err := weaviate.NewClient(weaviateConfig)
 	if err != nil {
@@ -71,14 +71,14 @@ func collectionCheck() {
 	}
 
 	if weaviateClassExists == false { // add the collection
-		log.Printf("collection '%s' not found, will create", classObj.Class)
+		log.Printf("collection check - collection '%s' not found, will create", classObj.Class)
 		err = client.Schema().ClassCreator().WithClass(classObj).Do(context.Background())
 		if err != nil {
 			fmt.Printf("error adding collection: '%v'\n", err)
 			os.Exit(1)
 		}
 	} else {
-		log.Printf("collection '%s' already exists", classObj.Class)
+		log.Printf("collection check - collection '%s' already exists", classObj.Class)
 	}
 
 	// TODO - may want way to update collection if class name exists but parameters are different

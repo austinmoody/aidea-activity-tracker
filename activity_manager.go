@@ -36,6 +36,8 @@ func init() {
 func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	log.Printf("activity manager - %s %s", r.Method, r.RequestURI)
+
 	switch {
 	case
 		r.Method == "POST":
@@ -62,11 +64,12 @@ func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *ActivityManager) saveActivity(w http.ResponseWriter, r *http.Request) {
 
-	log.Println("activity to save received")
+	log.Println("activity manager - activity to save received")
 
 	// Check content type
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
+		log.Printf("\tinvalid content type: %s", contentType)
 		http.Error(w, "content-Type must be application/json", http.StatusUnsupportedMediaType)
 		return
 	}
@@ -115,21 +118,27 @@ func (h *ActivityManager) saveActivity(w http.ResponseWriter, r *http.Request) {
 
 	saveActivityCsv(request)
 
+	log.Println("\tCSV entry saved")
+
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(request)
 
 }
 
 func (h *ActivityManager) recategorizeActivity(w http.ResponseWriter, r *http.Request) {
+
+	log.Println("activity manager - activity to recategorize received")
+
 	// Extract activity ID from URL using the regex pattern
 	matches := recategorizeById.FindStringSubmatch(r.URL.String())
-	if len(matches) < 2 {
-		http.Error(w, "Invalid activity ID in URL", http.StatusBadRequest)
+	if len(matches) < 1 {
+		log.Printf("\tinvalid id received in URL")
+		http.Error(w, "invalid activity ID in URL", http.StatusBadRequest)
 		return
 	}
 	activityId := matches[1]
 
-	log.Printf("activity to REcategorize: %s\n", activityId)
+	log.Printf("activity manager - REcategorize ID: %s\n", activityId)
 
 	// Generate today's filename based on current date
 	currentDate := time.Now().Format("20060102") // Format for YYYYMMDD
@@ -137,11 +146,13 @@ func (h *ActivityManager) recategorizeActivity(w http.ResponseWriter, r *http.Re
 
 	activity, err := getActivityInFileById(activityId, filename)
 	if err != nil {
+		log.Printf("\tunable to get activity from file: %s", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if (Activity{} == activity) {
+		log.Printf("\tactivity id '%s' found in file", activityId)
 		http.Error(w, "activity not found", http.StatusNotFound)
 		return
 	}
@@ -176,12 +187,17 @@ func (h *ActivityManager) recategorizeActivity(w http.ResponseWriter, r *http.Re
 }
 
 func (h *ActivityManager) getTodayCsv(w http.ResponseWriter) {
+
+	log.Println("activity manager - request for today's CSV received")
+
 	// Generate today's filename based on current date
 	currentDate := time.Now().Format("20060102") // Format for YYYYMMDD
 	filename := fmt.Sprintf("aidea_activity_tracking_%s.csv", currentDate)
 
+	log.Printf("\tlooking for file: %s\n", filename)
 	// Check if the file exists
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		log.Println("\tfile not found, likely no data saved today")
 		http.Error(w, "No activity data for today", http.StatusNotFound)
 		return
 	}
@@ -189,6 +205,7 @@ func (h *ActivityManager) getTodayCsv(w http.ResponseWriter) {
 	// Open the file
 	file, err := os.Open(filename)
 	if err != nil {
+		log.Println("\terror unable to open file")
 		http.Error(w, "Error opening CSV file: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -202,26 +219,36 @@ func (h *ActivityManager) getTodayCsv(w http.ResponseWriter) {
 	// Copy the file contents to the response
 	_, err = io.Copy(w, file)
 	if err != nil {
+		log.Printf("\terror responding with data: %v", err)
 		log.Printf("Error sending CSV file: %v", err)
 	}
+
+	log.Println("\ttoday's CSV returned to caller")
 }
 
 func (h *ActivityManager) getCsvByDate(w http.ResponseWriter, r *http.Request) {
+
+	log.Println("activity manager - request for dated CSV received")
+
 	// Extract date from URL using regex patter
 	matches := activityCsvByDate.FindStringSubmatch(r.URL.String())
 	if len(matches) < 1 {
+		log.Printf("\tinvalid date received in URL")
 		http.Error(w, "Invalid date in URL", http.StatusBadRequest)
 		return
 	}
 	fileDate := matches[1]
 	filename := fmt.Sprintf("aidea_activity_tracking_%s.csv", fileDate)
 
+	log.Printf("\tdate for CSV request is '%s'\n", fileDate)
+
 	file, err := getCsvFile(filename)
 	if err != nil {
+		log.Printf("\tunable to get CSV file: %s", err.Error())
 		http.Error(w, fmt.Sprintf("error opening CSV file '%s'  %s", filename, err.Error()), http.StatusInternalServerError)
 		return
 	}
-	defer file.Close() // Ensure file is closed after we're done with it
+	defer file.Close() // Ensure the file is closed after we're done with it
 
 	// Set response headers for CSV file download
 	w.Header().Set("Content-Type", "text/csv")
@@ -233,6 +260,8 @@ func (h *ActivityManager) getCsvByDate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Error sending CSV file: "+err.Error(), http.StatusInternalServerError)
 	}
+
+	log.Printf("\tdata for CSV for '%s' returned to caller", fileDate)
 
 }
 

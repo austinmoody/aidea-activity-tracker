@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
-	"log"
 	"os"
 	"reflect"
 	"time"
@@ -43,7 +42,6 @@ func saveActivityCsv(activity Activity) error {
 
 	// Write data in Activity
 	myValues := getActivitySlice(activity)
-	log.Printf("writing %d records to csv", len(myValues))
 
 	if err := writer.Write(myValues); err != nil {
 		return fmt.Errorf("error writing records to csv: %v", err)
