@@ -41,6 +41,7 @@ type Activity struct {
 	CategorizationGrade    string    `json:"categorization_grade"`
 	Duration               string    `json:"duration"`
 	Categorized            bool      `json:"categorized"`
+	PostedToJiraTempo      bool      `json:"posted_to_jira_tempo"`
 	CreatedAt              time.Time `json:"created_at"`
 }
 

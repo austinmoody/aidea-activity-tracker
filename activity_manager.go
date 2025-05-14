@@ -109,6 +109,7 @@ func (h *ActivityManager) saveActivity(w http.ResponseWriter, r *http.Request) {
 	request.CreatedAt = time.Now()
 	request.ActivityId = uuid.New().String()
 	request.Categorized = false
+	request.PostedToJiraTempo = false
 
 	log.Printf("\tassigned id %s\n", request.ActivityId)
 
@@ -559,6 +560,16 @@ func (h *ActivityManager) activityToTempoById(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Check if the activity has already been posted to Jira/Tempo
+	if activity.PostedToJiraTempo {
+		response := map[string]string{"message": "Activity has already been posted to Jira/Tempo"}
+		responseJSON, _ := json.Marshal(response)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(responseJSON)
+		return
+	}
+
 	durationInSeconds, err := getDurationInSeconds(activity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -605,6 +616,15 @@ func (h *ActivityManager) activityToTempoById(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error reading response body: %w", err), http.StatusBadRequest)
 		return
+	}
+
+	// Update the activity to mark it as posted to Jira/Tempo
+	activity.PostedToJiraTempo = true
+	err = updateActivityInCSV(activity, filename)
+	if err != nil {
+		// Even if we fail to update the file, we still successfully posted to Jira/Tempo
+		// So we'll log the error but still return success to the client
+		log.Printf("Error updating activity in file: %v", err)
 	}
 
 	w.WriteHeader(http.StatusOK)
