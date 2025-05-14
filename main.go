@@ -1,8 +1,14 @@
+// @title AIdea Activity Tracker API
+// @version 1.0
+// @description API for tracking and managing activities
+// @host localhost:8080
+// @BasePath /api/v1
 package main
 
 import (
 	"fmt"
 	"github.com/joho/godotenv"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 	"log"
 	"net/http"
@@ -83,6 +89,21 @@ func main() {
 	collectionCheck()
 
 	mux := http.NewServeMux()
+
+	// Serve Swagger UI files
+	mux.Handle("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/swagger.json"), // URL to the Swagger JSON file
+	))
+
+	// Serve Swagger JSON at /swagger.json
+	mux.HandleFunc("/swagger/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./docs/swagger.json")
+	})
+
+	mux.HandleFunc("/swagger/swagger.yaml", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./docs/swagger.yaml")
+	})
+
 	mux.Handle("/api/v1/activity/", &ActivityManager{})
 	mux.Handle("/api/v1/activity", &ActivityManager{})
 	mux.Handle("/api/v1/rule", &RuleManager{})
