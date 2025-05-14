@@ -75,16 +75,6 @@ func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Summary Create a new activity
-// @Description Create a new activity with the provided details
-// @Tags activity
-// @Accept json
-// @Produce json
-// @Param activity body Activity true "Activity object to be created"
-// @Success 201 {object} Activity "Successfully created activity"
-// @Failure 400 {object} string "Bad request"
-// @Failure 415 {object} string "Unsupported media type"
-// @Router /activity [post]
 func (h *ActivityManager) saveActivity(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("activity manager - activity to save received")
@@ -149,16 +139,6 @@ func (h *ActivityManager) saveActivity(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// @Summary Recategorize an activity
-// @Description Recategorize an existing activity by its ID
-// @Tags activity
-// @Accept json
-// @Produce json
-// @Param id path string true "Activity ID"
-// @Success 200 {object} Activity "Successfully recategorized activity"
-// @Failure 400 {object} string "Bad request"
-// @Failure 404 {object} string "Activity not found"
-// @Router /activity/recategorize/{id} [patch]
 func (h *ActivityManager) recategorizeActivity(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("activity manager - activity to recategorize received")
@@ -220,14 +200,6 @@ func (h *ActivityManager) recategorizeActivity(w http.ResponseWriter, r *http.Re
 	json.NewEncoder(w).Encode(activity)
 }
 
-// @Summary Get today's activities
-// @Description Get all activities recorded today in CSV format
-// @Tags activity
-// @Produce json
-// @Success 200 {array} Activity "List of today's activities"
-// @Failure 400 {object} string "Bad request"
-// @Failure 404 {object} string "No activities found for today"
-// @Router /activity/csv/today [get]
 func (h *ActivityManager) getTodayCsv(w http.ResponseWriter) {
 
 	log.Println("activity manager - request for today's CSV received")
@@ -268,15 +240,6 @@ func (h *ActivityManager) getTodayCsv(w http.ResponseWriter) {
 	log.Println("\ttoday's CSV returned to caller")
 }
 
-// @Summary Get activities by date
-// @Description Get all activities recorded on a specific date in CSV format
-// @Tags activity
-// @Produce json
-// @Param date path string true "Date in YYYYMMDD format"
-// @Success 200 {array} Activity "List of activities for the specified date"
-// @Failure 400 {object} string "Bad request"
-// @Failure 404 {object} string "No activities found for the specified date"
-// @Router /activity/csv/{date} [get]
 func (h *ActivityManager) getCsvByDate(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("activity manager - request for dated CSV received")
@@ -316,16 +279,6 @@ func (h *ActivityManager) getCsvByDate(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// @Summary Get activity by date and ID
-// @Description Get a specific activity by its date and ID
-// @Tags activity
-// @Produce json
-// @Param date path string true "Date in YYYYMMDD format"
-// @Param id path string true "Activity ID"
-// @Success 200 {object} Activity "Activity details"
-// @Failure 400 {object} string "Bad request"
-// @Failure 404 {object} string "Activity not found"
-// @Router /activity/{date}/{id} [get]
 func (h *ActivityManager) getActivityByDateId(w http.ResponseWriter, r *http.Request) {
 	// Extract activity ID from URL using the regex pattern
 	matches := activityByDateId.FindStringSubmatch(r.URL.String())
@@ -355,15 +308,6 @@ func (h *ActivityManager) getActivityByDateId(w http.ResponseWriter, r *http.Req
 	return
 }
 
-// @Summary Get activity by ID
-// @Description Get a specific activity by its ID (from today's activities)
-// @Tags activity
-// @Produce json
-// @Param id path string true "Activity ID"
-// @Success 200 {object} Activity "Activity details"
-// @Failure 400 {object} string "Bad request"
-// @Failure 404 {object} string "Activity not found"
-// @Router /activity/{id} [get]
 func (h *ActivityManager) getActivityById(w http.ResponseWriter, r *http.Request) {
 	// Extract activity ID from URL using the regex pattern
 	matches := activityById.FindStringSubmatch(r.URL.String())
@@ -580,16 +524,6 @@ func getCsvFile(fileName string) (*os.File, error) {
 	return file, nil
 }
 
-// @Summary Post activity to Jira/Tempo
-// @Description Post an activity to Jira/Tempo by its date and ID
-// @Tags activity
-// @Produce json
-// @Param date path string true "Date in YYYYMMDD format"
-// @Param id path string true "Activity ID"
-// @Success 200 {object} string "Successfully posted to Jira/Tempo"
-// @Failure 400 {object} string "Bad request"
-// @Failure 404 {object} string "Activity not found"
-// @Router /activity/tempo/{date}/{id} [post]
 func (h *ActivityManager) activityToTempoById(w http.ResponseWriter, r *http.Request) {
 	// Look up id in today's file, create payload to send to Jira endpoint
 	// NOTE that as of now, the endpoint is completely faked out
