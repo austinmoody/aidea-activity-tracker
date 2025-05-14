@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -21,9 +22,17 @@ var (
 	activityById      *regexp.Regexp
 	activityByDateId  *regexp.Regexp
 	recategorizeById  *regexp.Regexp
+	activityToTempo   *regexp.Regexp
 )
 
 type ActivityManager struct{}
+
+type JiraTempoPayload struct {
+	IssueKey         string `json:"issueKey"`
+	TimeSpentSeconds int    `json:"timeSpentSeconds"`
+	StartDate        string `json:"startDate"`
+	Description      string `json:"description"`
+}
 
 func init() {
 	activityTodayCsv = regexp.MustCompile(`^/api/v1/activity/csv/today$`)
@@ -31,6 +40,7 @@ func init() {
 	activityById = regexp.MustCompile(`^/api/v1/activity/([0-9a-f-]+)$`)
 	activityByDateId = regexp.MustCompile(`^/api/v1/activity/([0-9]{8})/([0-9a-f-]+)$`)
 	recategorizeById = regexp.MustCompile(`^/api/v1/activity/recategorize/([0-9a-f-]+)$`)
+	activityToTempo = regexp.MustCompile(`^/api/v1/activity/tempo/([0-9]{8})/([0-9a-f-]+)$`)
 }
 
 func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +49,9 @@ func (h *ActivityManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("activity manager - %s %s", r.Method, r.RequestURI)
 
 	switch {
+	case
+		r.Method == "POST" && activityToTempo.MatchString(r.URL.String()):
+		h.activityToTempoById(w, r)
 	case
 		r.Method == "POST":
 		h.saveActivity(w, r)
@@ -508,4 +521,94 @@ func getCsvFile(fileName string) (*os.File, error) {
 	}
 
 	return file, nil
+}
+
+func (h *ActivityManager) activityToTempoById(w http.ResponseWriter, r *http.Request) {
+	// Look up id in today's file, create payload to send to Jira endpoint
+	// NOTE that as of now, the endpoint is completely faked out
+	// Example paylaod:
+	/*
+		{
+		    "issueKey": "FEDS-148",
+		    "timeSpentSeconds": 3600,
+		    "startDate": "2025-05-13",
+		    "description": "Working on task"
+		  }
+	*/
+	// So need to convert the stored duration to seconds, and the start date to just YYYY-MM-DD
+
+	// Extract activity ID from URL using the regex pattern
+	matches := activityToTempo.FindStringSubmatch(r.URL.String())
+	if len(matches) < 2 {
+		http.Error(w, "Invalid activity ID in URL", http.StatusBadRequest)
+		return
+	}
+	activityId := matches[2]
+	fileDate := matches[1]
+
+	filename := fmt.Sprintf("aidea_activity_tracking_%s.csv", fileDate)
+
+	activity, err := getActivityInFileById(activityId, filename)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if (Activity{} == activity) {
+		http.Error(w, "activity not found", http.StatusNotFound)
+		return
+	}
+
+	durationInSeconds, err := getDurationInSeconds(activity)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	jiraTempoPayload := JiraTempoPayload{
+		IssueKey:         activity.Jira,
+		TimeSpentSeconds: durationInSeconds,
+		Description:      activity.InputDescription,
+		StartDate:        activity.CreatedAt.Format("20060102"),
+	}
+
+	// Post to Jira endpoint
+	requestData, err := json.Marshal(jiraTempoPayload)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error marshalling request: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	req, err := http.NewRequest("POST", jiraTempoEndpoint, bytes.NewBuffer(requestData))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error creating request: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error sending request to Jira/Tempo: %w", err), http.StatusBadRequest)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		http.Error(w, fmt.Sprintf("Jira/Tempo API returned error: %s - %s", resp.Status, string(responseBody)), http.StatusBadRequest)
+		return
+	}
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error reading response body: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(responseBody)
+	return
+
 }

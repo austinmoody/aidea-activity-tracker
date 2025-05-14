@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 type OllamaRequest struct {
@@ -22,6 +24,8 @@ type OllamaResponse struct {
 	Response string `json:"response"`
 	Done     bool   `json:"done"`
 }
+
+// TODO - generic Ollama function to pass in system prompt, user input and get response
 
 func getDuration(activity Activity) (string, error) {
 
@@ -110,4 +114,76 @@ Output: 15m`
 
 	return ollamaResponse.Response, nil
 
+}
+
+func getDurationInSeconds(activity Activity) (int, error) {
+
+	systemPrompt := `You are a time duration extractor. Your ONLY job is to output a time duration in seconds.
+CRITICAL INSTRUCTIONS:
+1. NEVER include any explanations, questions, or additional text in your response
+2. ONLY output the final time duration in seconds and nothing else
+3. DO NOT respond conversationally under any circumstances
+4. Your ENTIRE response must be JUST the duration integer in seconds
+
+The time format you will receive is "Xh Ym" where X is hours and Y is minutes.  
+
+If the duration only contains minutes you would only receive Ym
+
+If the duration only contains hours you would only receive Xh
+
+You will need to convert this to seconds
+
+So if you received 30m you would return 1800
+
+If you received 1h you would return 3600
+
+If you received 2h 15m you would return 8100
+`
+	ollamaRequest := OllamaRequest{
+		Model:       ollamaGenModel,
+		Prompt:      activity.Duration,
+		System:      systemPrompt,
+		Stream:      false,
+		MaxTokens:   2000,
+		Temperature: 0.7,
+	}
+
+	requestData, err := json.Marshal(ollamaRequest)
+	if err != nil {
+		return -1, fmt.Errorf("error marshalling request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", ollamaGenEndpoint, bytes.NewBuffer(requestData))
+	if err != nil {
+		return -1, fmt.Errorf("error creating request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return -1, fmt.Errorf("error sending request to Ollama: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		return -1, fmt.Errorf("Ollama API returned error: %s - %s", resp.Status, string(responseBody))
+	}
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return -1, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	var ollamaResponse OllamaResponse
+	err = json.Unmarshal(responseBody, &ollamaResponse)
+	if err != nil {
+		return -1, fmt.Errorf("error processing Ollama response: %w", err)
+	}
+
+	durationAsString := strings.TrimSuffix(ollamaResponse.Response, "\n")
+
+	return strconv.Atoi(durationAsString)
 }

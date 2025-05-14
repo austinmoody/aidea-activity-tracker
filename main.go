@@ -18,7 +18,6 @@ var (
 	weaviateEmbedModel      string
 	weaviateGenerativeModel string
 	weaviateOllamaEndpoint  string
-	rulesDirectory          string
 	// There are two ollama endpoints only because Weaviate is
 	// running in Docker and so needs host.docker.internal to talk
 	// to my locally running Ollama. But I can't get a duration pulled
@@ -27,6 +26,7 @@ var (
 	ollamaGenEndpoint string
 	ollamaGenModel    string
 	autoGrades        []string
+	jiraTempoEndpoint string
 )
 
 type Activity struct {
@@ -61,7 +61,6 @@ func init() {
 	weaviateEmbedModel = os.Getenv("WEAVIATE_OLLAMA_EMBED_MODEL")
 	weaviateGenerativeModel = os.Getenv("WEAVIATE_OLLAMA_GEN_MODEL")
 	weaviateOllamaEndpoint = os.Getenv("WEAVIATE_OLLAMA_ENDPOINT")
-	rulesDirectory = os.Getenv("RULES_DIRECTORY")
 
 	ollamaGenEndpoint = os.Getenv("OLLAMA_GEN_ENDPOINT")
 	ollamaGenModel = os.Getenv("OLLAMA_GEN_MODEL")
@@ -72,6 +71,7 @@ func init() {
 	// and the match is determined to be C the categorization won't be saved
 	autoGrades = strings.Split(os.Getenv("AUTO_CATEGORIZE_GRADES"), ",")
 
+	jiraTempoEndpoint = os.Getenv("JIRA_TEMPO_ENDPOINT")
 }
 
 func main() {
