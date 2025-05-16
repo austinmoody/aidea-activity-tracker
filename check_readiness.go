@@ -10,7 +10,7 @@ import (
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 )
 
-func main() {
+func checkWeaviate() {
 	cfg := weaviate.Config{
 		Host:   "localhost:8080",
 		Scheme: "http",
